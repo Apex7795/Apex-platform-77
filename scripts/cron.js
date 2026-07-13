@@ -1,131 +1,51 @@
-const { pool } = require('../lib/db');
+// scripts/cron.js
+// Standalone scheduler process for the three background jobs. Run this as
+// its own process/container alongside the Next.js app — Next.js API routes
+// are request/response and don't stay alive to host a cron scheduler
+// themselves, so this is a separate `node scripts/cron.js` process.
+//
+// IMPORTANT — run exactly ONE instance of this process. If you scale this
+// script horizontally the same way you might scale the web app, every
+// instance fires these jobs independently and tenants get duplicate SMS
+// and duplicate outreach emails. If you need HA, use a distributed
+// scheduler/lock (e.g. a Postgres advisory lock around each run) instead
+// of just running two copies of this file.
+require('dotenv').config();
+const cron = require('node-cron');
+const { runLeadRescueJob } = require('../jobs/leadRescue');
+const { runDailyDigestJob } = require('../jobs/dailyDigest');
+const { runProspectDiscoveryJob } = require('../jobs/prospectDiscovery');
+const { runProspectHygieneJob } = require('../jobs/prospectHygiene');
 
-const LOCK_ID = 1000;
-const LOCK_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+// Lead rescue: every 5 minutes, matches the 5-minute/2-hour staging logic
+// inside jobs/leadRescue.js itself.
+cron.schedule('*/5 * * * *', () => {
+  runLeadRescueJob().catch((err) => console.error('leadRescue cron run failed:', err));
+});
 
-async function acquireLock() {
-  const result = await pool.query(
-    'SELECT pg_try_advisory_lock($1) as acquired',
-    [LOCK_ID]
+// Daily digest: fixed 8am server time for now. jobs/dailyDigest.js's own
+// comments note that per-tenant local-8am filtering would need an hourly
+// run + a timezone column on tenants — not implemented here, matching
+// what was already true of the job itself.
+cron.schedule('0 8 * * *', () => {
+  runDailyDigestJob().catch((err) => console.error('dailyDigest cron run failed:', err));
+});
+
+// Prospect discovery: once daily, early morning. Target cities are
+// hardcoded in jobs/prospectDiscovery.js's default argument — pass your
+// real target list here instead of relying on the default.
+cron.schedule('0 6 * * *', () => {
+  runProspectDiscoveryJob(['Sacramento, CA']).catch((err) =>
+    console.error('prospectDiscovery cron run failed:', err)
   );
-  return result.rows[0].acquired;
-}
+});
 
-async function releaseLock() {
-  await pool.query(
-    'SELECT pg_advisory_unlock($1) as released',
-    [LOCK_ID]
-  );
-}
+// Prospect data hygiene: weekly, Sunday 2am — refreshes stale enrichment
+// data (30+ days old), respecting opt-out status. See jobs/prospectHygiene.js.
+cron.schedule('0 2 * * 0', () => {
+  runProspectHygieneJob().catch((err) => console.error('prospectHygiene cron run failed:', err));
+});
 
-async function updateConversionScores() {
-  console.log('Updating conversion scores...');
-  try {
-    const result = await pool.query(`
-      UPDATE prospects
-      SET
-        conversion_score = CASE
-          WHEN review_count > 50 THEN 30 + 30
-          WHEN review_count > 20 THEN 30 + 20
-          ELSE 30
-        END +
-        CASE
-          WHEN rating >= 4.5 THEN 25
-          WHEN rating >= 4.0 THEN 15
-          ELSE 0
-        END,
-        conversion_probability = LEAST((
-          (CASE
-            WHEN review_count > 50 THEN 30 + 30
-            WHEN review_count > 20 THEN 30 + 20
-            ELSE 30
-          END +
-          CASE
-            WHEN rating >= 4.5 THEN 25
-            WHEN rating >= 4.0 THEN 15
-            ELSE 0
-          END) / 100.0) * 95, 95),
-        review_velocity = (review_count - COALESCE(last_score_review_count, 0)) / NULLIF(EXTRACT(DAY FROM (NOW() - last_scored_at)), 0)
-      WHERE last_scored_at IS NULL OR last_scored_at < NOW() - INTERVAL '24 hours'
-      RETURNING id
-    `);
-    console.log(`Updated ${result.rowCount} prospects`);
-  } catch (error) {
-    console.error('Error updating conversion scores:', error);
-    throw error;
-  }
-}
-
-async function processBookedJobs() {
-  console.log('Processing booked jobs...');
-  try {
-    const result = await pool.query(`
-      UPDATE booked_jobs
-      SET status = 'processed'
-      WHERE status = 'pending'
-      AND created_at < NOW() - INTERVAL '24 hours'
-      RETURNING id
-    `);
-    console.log(`Processed ${result.rowCount} booked jobs`);
-  } catch (error) {
-    console.error('Error processing booked jobs:', error);
-    throw error;
-  }
-}
-
-async function cleanupOldRecords() {
-  console.log('Cleaning up old records...');
-  try {
-    const result = await pool.query(`
-      DELETE FROM booked_jobs
-      WHERE status = 'pending'
-      AND created_at < NOW() - INTERVAL '30 days'
-      RETURNING id
-    `);
-    console.log(`Deleted ${result.rowCount} old records`);
-  } catch (error) {
-    console.error('Error cleaning up records:', error);
-    throw error;
-  }
-}
-
-async function runScheduler() {
-  const acquired = await acquireLock();
-  if (!acquired) {
-    console.log('[SKIP] Could not acquire lock, another instance running');
-    return;
-  }
-
-  try {
-    console.log('[START] Scheduler running at', new Date().toISOString());
-
-    await updateConversionScores();
-    await processBookedJobs();
-    await cleanupOldRecords();
-
-    console.log('[SUCCESS] Scheduler completed at', new Date().toISOString());
-  } catch (error) {
-    console.error('[ERROR] Scheduler failed:', error);
-    process.exit(1);
-  } finally {
-    await releaseLock();
-    await pool.end();
-  }
-}
-
-if (require.main === module) {
-  // Set timeout to prevent hanging
-  const timeout = setTimeout(() => {
-    console.error('[TIMEOUT] Scheduler exceeded maximum runtime');
-    process.exit(1);
-  }, LOCK_TIMEOUT);
-
-  runScheduler()
-    .catch(error => {
-      console.error('[FATAL]', error);
-      process.exit(1);
-    })
-    .finally(() => clearTimeout(timeout));
-}
-
-module.exports = { runScheduler };
+console.log(
+  'Cron worker started: leadRescue (*/5 min), dailyDigest (8am), prospectDiscovery (6am), prospectHygiene (Sun 2am)'
+);

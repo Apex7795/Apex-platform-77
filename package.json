@@ -1,0 +1,31 @@
+{
+  "name": "apex-junk-solutions-platform",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "cron": "node scripts/cron.js",
+    "migrate": "psql \"$DATABASE_URL\" -f db/migrate_combined.sql",
+    "job:rescue": "node -e \"require('./jobs/leadRescue').runLeadRescueJob()\"",
+    "job:digest": "node -e \"require('./jobs/dailyDigest').runDailyDigestJob()\"",
+    "job:prospect-discovery": "node -e \"require('./jobs/prospectDiscovery').runProspectDiscoveryJob()\""
+  },
+  "dependencies": {
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "lucide-react": "^0.400.0",
+    "pg": "^8.12.0",
+    "twilio": "^5.2.2",
+    "openai": "^4.56.0",
+    "postmark": "^4.0.5",
+    "stripe": "^16.8.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
