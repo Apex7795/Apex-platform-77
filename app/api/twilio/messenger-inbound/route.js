@@ -74,3 +74,12 @@ export async function POST(req) {
     return new Response('Error', { status: 500 });
   }
 }
+
+// Lets you confirm the route is deployed/reachable by hitting it in a browser.
+export async function GET() {
+  return Response.json({
+    status: 'ok',
+    endpoint: '/api/twilio/messenger-inbound',
+    description: 'Twilio Messenger inbound webhook',
+  });
+}
