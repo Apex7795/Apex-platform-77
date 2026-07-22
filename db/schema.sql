@@ -66,7 +66,7 @@ CREATE TABLE tracking_numbers (
 CREATE TABLE leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    source TEXT NOT NULL, -- call | form | sms
+    source TEXT NOT NULL, -- call | form | sms | messenger
     caller_number TEXT,
     call_duration_seconds INT,
     call_sid TEXT UNIQUE,
