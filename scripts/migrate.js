@@ -1,5 +1,11 @@
 // scripts/migrate.js - Atomic Migration Script
-const { pool } = require('../lib/db');
+// Uses its own pool on MIGRATION_DATABASE_URL rather than lib/db's pool:
+// this script runs DDL (CREATE TABLE, ALTER TABLE, CREATE POLICY), which
+// the app's own DATABASE_URL role (app_user, see db/migrate_rls_hardening.sql)
+// is deliberately not granted.
+const { Pool } = require('pg');
+
+const pool = new Pool({ connectionString: process.env.MIGRATION_DATABASE_URL });
 
 async function migrate() {
   const client = await pool.connect();

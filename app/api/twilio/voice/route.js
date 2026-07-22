@@ -17,10 +17,11 @@ export async function POST(req) {
 
     const { CallSid, From, To } = params;
 
-    const { rows } = await query(
-      'SELECT tenant_id, forwards_to FROM tracking_numbers WHERE phone_number = $1 AND is_active = true',
-      [To]
-    );
+    // Goes through the lookup_tracking_number() SECURITY DEFINER function
+    // (db/migrate_rls_hardening.sql), not a direct SELECT — this is a
+    // cross-tenant read done before tenant_id is known, which app_user's
+    // RLS grant deliberately can't do directly.
+    const { rows } = await query('SELECT * FROM lookup_tracking_number($1)', [To]);
     const tenant = rows[0];
 
     if (!tenant) {
@@ -32,8 +33,8 @@ export async function POST(req) {
 
     await runWithTenant(tenant.tenant_id, (client) =>
       client.query(
-        `INSERT INTO leads (tenant_id, call_sid, caller_number, status)
-         VALUES ($1, $2, $3, $4) ON CONFLICT (call_sid) DO NOTHING`,
+        `INSERT INTO leads (tenant_id, source, call_sid, caller_number, status)
+         VALUES ($1, 'call', $2, $3, $4) ON CONFLICT (call_sid) DO NOTHING`,
         [tenant.tenant_id, CallSid, From, 'new']
       )
     );

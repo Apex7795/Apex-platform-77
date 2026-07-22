@@ -23,11 +23,12 @@ export async function POST(req) {
     const { From, Body } = params;
     const normalizedBody = (Body || '').trim().toLowerCase();
 
-    // Find which tenant this number belongs to via their caller history
-    const { rows } = await query(
-      `SELECT tenant_id FROM leads WHERE caller_number = $1 ORDER BY created_at DESC LIMIT 1`,
-      [From]
-    );
+    // Find which tenant this number belongs to via their caller history.
+    // Goes through the lookup_tenant_by_caller() SECURITY DEFINER function
+    // (db/migrate_rls_hardening.sql), not a direct SELECT — this is a
+    // cross-tenant read done before tenant_id is known, which app_user's
+    // RLS grant deliberately can't do directly.
+    const { rows } = await query(`SELECT lookup_tenant_by_caller($1) AS tenant_id`, [From]);
     const tenantId = rows[0]?.tenant_id;
 
     if (OPT_OUT_KEYWORDS.includes(normalizedBody)) {
