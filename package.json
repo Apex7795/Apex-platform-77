@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "cron": "node scripts/cron.js",
-    "migrate": "psql \"$DATABASE_URL\" -f db/migrate_combined.sql",
+    "migrate": "psql \"$MIGRATION_DATABASE_URL\" -f db/migrate_combined.sql",
+    "migrate:rls-hardening": "psql \"$MIGRATION_DATABASE_URL\" -f db/migrate_rls_hardening.sql",
     "job:rescue": "node -e \"require('./jobs/leadRescue').runLeadRescueJob()\"",
     "job:digest": "node -e \"require('./jobs/dailyDigest').runDailyDigestJob()\"",
     "job:prospect-discovery": "node -e \"require('./jobs/prospectDiscovery').runProspectDiscoveryJob()\""

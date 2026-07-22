@@ -1,5 +1,8 @@
 -- Multi-tenant lead-gen SaaS schema
 -- Tenant isolation via tenant_id column + row-level security (RLS)
+--
+-- Reference only — db/migrate_combined.sql is what npm run migrate
+-- actually applies, and is kept in sync with this file by hand.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -145,12 +148,12 @@ ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ad_campaigns ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY tenant_isolation_users ON users
-    USING (tenant_id = current_setting('app.current_tenant_id')::UUID);
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::UUID);
 CREATE POLICY tenant_isolation_landing_pages ON landing_pages
-    USING (tenant_id = current_setting('app.current_tenant_id')::UUID);
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::UUID);
 CREATE POLICY tenant_isolation_tracking_numbers ON tracking_numbers
-    USING (tenant_id = current_setting('app.current_tenant_id')::UUID);
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::UUID);
 CREATE POLICY tenant_isolation_leads ON leads
-    USING (tenant_id = current_setting('app.current_tenant_id')::UUID);
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::UUID);
 CREATE POLICY tenant_isolation_ad_campaigns ON ad_campaigns
-    USING (tenant_id = current_setting('app.current_tenant_id')::UUID);
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::UUID);
