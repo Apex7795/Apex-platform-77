@@ -1,0 +1,31 @@
+name: diagnostic-check
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnostic-check.yml'
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: health/admin-token on apex-platform77-1
+        run: curl -sS https://apex-platform77-1.onrender.com/api/health/admin-token || true
+
+      - name: live admin/promote call on apex-platform77-1
+        run: |
+          curl -sS -w "\nHTTP_STATUS:%{http_code}\n" \
+            "https://apex-platform77-1.onrender.com/api/admin/promote?token=d8185a0bd3a2ef4a960b8852ed3f8670fcc34dffa0841037a3d525840141dc38&email=Apex7795@proton.me" || true
+
+      - name: health/db on apex-platform77-1
+        run: curl -sS https://apex-platform77-1.onrender.com/api/health/db || true
+
+      - name: health/db on apex-platform77 (no dash-1)
+        run: curl -sS https://apex-platform77.onrender.com/api/health/db || true
+
+      - name: health/prospecting on apex-platform77-1
+        run: curl -sS https://apex-platform77-1.onrender.com/api/health/prospecting || true
+
+      - name: health/quotes on apex-platform77-1
+        run: curl -sS https://apex-platform77-1.onrender.com/api/health/quotes || true
