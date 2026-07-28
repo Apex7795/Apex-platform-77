@@ -19,6 +19,9 @@ jobs:
       - name: health/database-url on apex-platform77 (no dash-1)
         run: curl -sS https://apex-platform77.onrender.com/api/health/database-url || true
 
+      - name: health/billing on apex-platform77-1
+        run: curl -sS https://apex-platform77-1.onrender.com/api/health/billing || true
+
       - name: live admin/promote call on apex-platform77-1
         run: |
           curl -sS -w "\nHTTP_STATUS:%{http_code}\n" \
