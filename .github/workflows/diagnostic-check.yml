@@ -13,6 +13,9 @@ jobs:
       - name: health/admin-token on apex-platform77-1
         run: curl -sS https://apex-platform77-1.onrender.com/api/health/admin-token || true
 
+      - name: health/database-url on apex-platform77-1
+        run: curl -sS https://apex-platform77-1.onrender.com/api/health/database-url || true
+
       - name: live admin/promote call on apex-platform77-1
         run: |
           curl -sS -w "\nHTTP_STATUS:%{http_code}\n" \
