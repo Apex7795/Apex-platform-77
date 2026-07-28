@@ -16,7 +16,7 @@ jobs:
       - name: live admin/promote call on apex-platform77-1
         run: |
           curl -sS -w "\nHTTP_STATUS:%{http_code}\n" \
-            "https://apex-platform77-1.onrender.com/api/admin/promote?token=d8185a0bd3a2ef4a960b8852ed3f8670fcc34dffa0841037a3d525840141dc38&email=Apex7795@proton.me" || true
+            "https://apex-platform77-1.onrender.com/api/admin/promote?token=d8185a0bd3a2ef4a960b8852ed3f8670fcc34dffa0841037a3d525840141dc38&email=apex7795@proton.me" || true
 
       - name: health/db on apex-platform77-1
         run: curl -sS https://apex-platform77-1.onrender.com/api/health/db || true
