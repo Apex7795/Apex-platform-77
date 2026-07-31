@@ -49,3 +49,8 @@ jobs:
 
       - name: health/quotes on apex-platform77-1
         run: curl -sS https://apex-platform77-1.onrender.com/api/health/quotes || true
+
+      - name: provision-tracking-number route exists (no token -- expect 401, not 404, spends no money)
+        run: |
+          curl -sS -w "\nHTTP_STATUS:%{http_code}\n" \
+            "https://apex-platform77-1.onrender.com/api/admin/provision-tracking-number" || true
